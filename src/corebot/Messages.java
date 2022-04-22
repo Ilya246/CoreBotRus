@@ -201,7 +201,7 @@ public class Messages extends ListenerAdapter{
                 builder.append("\n");
             }
 
-            info(msg.getChannel(), "Commands", builder.toString());
+            info(msg.getChannel(), "Команды", builder.toString());
         });
 
         handler.<Message>register("ping", "<ip>", "Отправляет пинг игровому серверу.", (args, msg) -> {
