@@ -1,51 +1,55 @@
 package corebot;
 
 public enum Info{
-    links("Relevant Links",
+    links("Различные ссылки",
     """
-    [Source Code on Github](https://github.com/Anuken/Mindustry/)
-    [Suggestion Form](https://github.com/Anuken/Mindustry-Suggestions/issues/new/choose)
-    [Bug Report Form](https://github.com/Anuken/Mindustry/issues/new/choose)
+    Внимание! Учитывайте, что на каждой ссылке от Вас могут ожидать использование *английского языка*.
+    
+    [Исходный код на GitHub](https://github.com/Anuken/Mindustry/)
+    [Форма предложений](https://github.com/Anuken/Mindustry-Suggestions/issues/new/choose)
+    [Форма сообщений о багах](https://github.com/Anuken/Mindustry/issues/new/choose)
     [Trello](https://trello.com/b/aE2tcUwF)
-    [Steam Version](https://store.steampowered.com/app/1127400/Mindustry/)
-    [Android APKs and itch.io version](https://anuke.itch.io/mindustry)
-    [iOS version](https://itunes.apple.com/us/app/mindustry/id1385258906?mt=8&ign-mpt=uo%3D8)
-    [Google Play Listing](https://play.google.com/store/apps/details?id=mindustry)
-    [TestFlight Link](https://testflight.apple.com/join/79Azm1hZ)
-    [Mindustry Subreddit](https://www.reddit.com/r/mindustry)
-    [Unofficial Matrix](https://matrix.to/#/!bjBcJCYyWfNVdAAWZt:matrix.org)
+    [Версия Steam](https://store.steampowered.com/app/1127400/Mindustry/)
+    [APK для Android и версия itch.io](https://anuke.itch.io/mindustry)
+    [Версия iOS](https://itunes.apple.com/us/app/mindustry/id1385258906?mt=8&ign-mpt=uo%3D8)
+    [Описание на Google Play](https://play.google.com/store/apps/details?id=mindustry)
+    [Ссылка на TestFlight](https://testflight.apple.com/join/79Azm1hZ)
+    [Сообщество Mindustry на Reddit](https://www.reddit.com/r/mindustry)
+    [Неофициальное пространство Matrix](https://matrix.to/#/!bjBcJCYyWfNVdAAWZt:matrix.org)
     """),
-    beta("iOS Beta",
+    beta("Бета-версия на iOS",
     """
-    To join the iOS beta, click this [TestFlight Link](https://testflight.apple.com/join/79Azm1hZ), then install the Apple TestFlight app to play Mindustry.
+    Что-бы присоединиться к бета-тестированию на iOS, нажмите на [данную ссылку](https://testflight.apple.com/join/79Azm1hZ), затем установите приложение TestFlight от Apple.
     
-    There is currently no beta available on Google Play. Download the itch.io version.
+    На Google Play бета-тестирование приостановлено. Скачайте версию с itch.io.
     """),
-    rules("Rules",
+    rules("Правила",
     """
-    **1.** Don't be rude. This should be obvious. No racism/sexism/etc.
-    
-    **2.** No spamming or advertising.
-    
-    **3.** No NSFW, sensitive or political content. This includes NSFW conversations. Take it elsewhere.
-    
-    **4.** Keep content to the appropriate text channels.
-    
-    **5.** Please do not post invite links to this server in public places without context.
-    
-    **6.** Do not ask for roles. If I need a moderator and I think you fit the position, I will ask you personally.
-    
-    **7.** Do not impersonate other members or intentionally edit your messages to mislead others.
-    
-    **8.** Do not cross-post the same message to multiple channels.
-    
-    **9.** Do not advertise in DMs or send unsolicited messages to other users. Report violations of this sort to moderators immediately.
-    
-    **10.** Ban evasion and alternate accounts are not allowed. Alts posting any content on the server will be banned immediately.
-    
-    **11.** Please do not PM me (Anuke) unless you are reporting an exploit, a significant problem with the Discord server, or need to discuss something relating to Github PRs. If you need help with the game, *ask in #help. or #mindustry*. Do *not* PM me suggestions - use the suggestions form.
-    
-    *If I don't like your behavior, you're out. Obey the spirit, not the word.*
+    1. Грубость запрещена. Запрещены расизм/сексизм и т.д. Чрезмерное использование мата запрещено.
+
+    2. Спам (флуд) и реклама запрещены.
+
+    3. NSFW и политика запрещены. Это включает NSFW-обсуждения. Обсуждение \"спецоперации\" на Украине строго запрещено.
+
+    4. Пишите в соответствующие теме обсуждения каналы.
+
+    5. Не публикуйте приглашение на этот сервер в общественных местах, не связанных с Mindustry.
+
+    6. Не выпрашивайте роли. Если потребуется модератор, мы сами его выберем.
+
+    7. Не выдавайте себя за других членов сообщества и не редактируйте свои сообщения, чтобы ввести других в заблуждение.
+
+    8. Не отправляйте одно и то же сообщение в нескольких каналах подряд.
+
+    9. Не отправляйте другим нежеланные личные сообщения. Сообщайте о нарушении этого правила любому модератору.
+
+    10. Запрещён обход банов. Любые альт-аккаунты, отправляющие что-либо на сервере, будут забанены. Разрешено использование альт-аккаунта для запросов на разбан.
+
+    11. Для разговоров разрешён только русский язык.
+
+    Нарушение любого из этих правил может повлечь предупреждение, 3 предупреждения - бан, навсегда.
+
+    Если нам не нравится Ваше поведение, мы вас удалим. Повинуйтесь духу, а не слову.
     """);
     public final String text;
     public final String title;

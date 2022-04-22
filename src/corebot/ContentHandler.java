@@ -186,7 +186,7 @@ public class ContentHandler{
         byte[] header = {'m', 's', 'c', 'h'};
         for(byte b : header){
             if(input.read() != b){
-                throw new IOException("Not a schematic file (missing header).");
+                throw new IOException("Не является файлом схемы (отсутствует заголовок).");
             }
         }
 
@@ -211,7 +211,7 @@ public class ContentHandler{
             }
 
             int total = stream.readInt();
-            if(total > 64 * 64) throw new IOException("Schematic has too many blocks.");
+            if(total > 128 * 128) throw new IOException("Схема содержит слишком много блоков.");
             Seq<Stile> tiles = new Seq<>(total);
             for(int i = 0; i < total; i++){
                 Block block = blocks.get(stream.readByte());
@@ -228,7 +228,7 @@ public class ContentHandler{
     }
 
     public BufferedImage previewSchematic(Schematic schem) throws Exception{
-        if(schem.width > 64 || schem.height > 64) throw new IOException("Schematic cannot be larger than 64x64.");
+        if(schem.width > 128 || schem.height > 128) throw new IOException("Схема не должна быть больше чем 128×128 блоков.");
         BufferedImage image = new BufferedImage(schem.width * 32, schem.height * 32, BufferedImage.TYPE_INT_ARGB);
 
         Draw.reset();
