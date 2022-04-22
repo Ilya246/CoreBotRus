@@ -17,7 +17,6 @@ import net.dv8tion.jda.api.entities.Message.*;
 import net.dv8tion.jda.api.events.guild.member.*;
 import net.dv8tion.jda.api.events.guild.member.update.*;
 import net.dv8tion.jda.api.events.message.*;
-import net.dv8tion.jda.api.events.message.guild.*;
 import net.dv8tion.jda.api.events.user.update.UserUpdateNameEvent;
 import net.dv8tion.jda.api.hooks.*;
 import net.dv8tion.jda.api.requests.*;
@@ -47,9 +46,13 @@ public class Messages extends ListenerAdapter{
 	private static final String invalidNicknameMessage = "Ваш никнейм содержит недопустимые символы." +
 		" Разрешённые символы: ASCII, кириллица. Никнейм был изменён на ";
     private static final String prefix = "!";
-    private static final int scamAutobanLimit = 3, pingSpamLimit = 10;
+    private static final int scamAutobanLimit = 3, pingSpamLimit = 10, minModStars = 10, naughtyTimeoutMins = 10;
     private static final SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd");
     private static final String[] warningStrings = {"однажды", "дважды", "трижды", "слишком много раз"};
+
+    private static final String
+    cyrillicFrom = "абсдефгнигклмпоркгзтюушхуз",
+    cyrillicTo =   "abcdefghijklmnopqrstuvwxyz";
 
     // https://stackoverflow.com/a/48769624
     private static final Pattern urlPattern = Pattern.compile("(?:(?:https?):\\/\\/)?[\\w/\\-?=%.]+\\.[\\w/\\-&?=%.]+");
@@ -64,6 +67,9 @@ public class Messages extends ListenerAdapter{
         "discordstatus.com"
     );
 
+    //yes it's base64 encoded, I don't want any of these words typed here
+    private static final Pattern badWordPattern = Pattern.compile(new String(Base64Coder.decode("KD88IVthLXpBLVpdKSg/OmN1bXxzZW1lbnxwb3JufG5pZ2cucikoPyFbYS16QS1aXSk=")));
+    private static final Pattern notBadWordPattern = Pattern.compile("");
     private static final Pattern invitePattern = Pattern.compile("(discord\\.gg/\\w|discordapp\\.com/invite/\\w|discord\\.com/invite/\\w)");
     private static final Pattern linkPattern = Pattern.compile("http(s?)://");
     private static final Pattern notScamPattern = Pattern.compile("discord\\.py|discord\\.js|nitrome\\.com");
@@ -133,6 +139,9 @@ public class Messages extends ListenerAdapter{
     mapsChannel, moderationChannel, schematicsChannel, baseSchematicsChannel,
     logChannel, joinChannel, videosChannel, streamsChannel, testingChannel,
     alertsChannel, curatedSchematicsChannel;
+
+    public Role modderRole;
+
     LongSeq schematicChannels = new LongSeq();
 
     public Messages(){
@@ -161,9 +170,12 @@ public class Messages extends ListenerAdapter{
     }
     
     void loadChannels(){
-
         //all guilds and channels are loaded here for faster lookup
+        
         guild = jda.getGuildById(953942350818856980L);
+        
+        //modderRole = guild.getRoleById(965691639811149865L);
+        
         pluginChannel = channel(966951464226422784L);
         crashReportChannel = channel(966947096890585128L);
         announcementsChannel = channel(959784619182542888L);
@@ -293,6 +305,84 @@ public class Messages extends ListenerAdapter{
                 errDelete(msg, "Ошибка парсинга карты.", err.length() < max ? err : err.substring(0, max));
             }
         });
+
+        /*handler.<Message>register("verifymodder", "[user/repo]", "Verify yourself as a modder by showing a mod repository that you own. Invoke with no arguments for additional info.", (args, msg) -> {
+            if(!msg.getChannel().getName().equalsIgnoreCase("bots")){
+                errDelete(msg, "Use this command in #bots.");
+                return;
+            }
+
+            if(msg.getMember() == null){
+                errDelete(msg, "Absolutely no ghosts allowed.");
+                return;
+            }
+
+            String rawSearchString = (msg.getAuthor().getName() + "#" + msg.getAuthor().getDiscriminator());
+
+            if(args.length == 0){
+                info(msg.getChannel(), "Modder Verification", """
+                To obtain the Modder role, you must do the following:
+                
+                1. Own a Github repository with the `mindustry-mod` tag.
+                2. Have at least @ stars on the repository.
+                3. Temporarily add your Discord `USERNAME#DISCRIMINATOR` (`@`) to the repository description or your user bio, to verify ownership.
+                4. Run this command with the repository URL or `Username/Repo` as an argument.
+                """, minModStars, rawSearchString);
+            }else{
+                if(msg.getMember().getRoles().stream().anyMatch(r -> r.equals(modderRole))){
+                    errDelete(msg, "You already have that role.");
+                    return;
+                }
+
+                String repo = args[0];
+                int offset = "https://github.com/".length();
+                if(repo.startsWith("https://") && repo.length() > offset + 1){
+                    repo = repo.substring(offset);
+                }
+
+                Http.get("https://api.github.com/repos/" + repo)
+                .header("Accept", "application/vnd.github.v3+json")
+                .error(err -> errDelete(msg, "Error fetching repository (Did you type the name correctly?)", Strings.getSimpleMessage(err)))
+                .block(res -> {
+                    Jval val = Jval.read(res.getResultAsString());
+                    String searchString = rawSearchString.toLowerCase(Locale.ROOT);
+
+                    boolean contains = val.getString("description").toLowerCase(Locale.ROOT).contains(searchString);
+                    boolean[] actualContains = {contains};
+
+                    //check bio if not found
+                    if(!contains){
+                        Http.get(val.get("owner").getString("url"))
+                        .error(Log::err) //why would this ever happen
+                        .block(user -> {
+                            Jval userVal = Jval.read(user.getResultAsString());
+                            if(userVal.getString("bio", "").toLowerCase(Locale.ROOT).contains(searchString)){
+                                actualContains[0] = true;
+                            }
+                        });
+                    }
+
+                    if(!val.get("topics").asArray().contains(j -> j.asString().contains("mindustry-mod"))){
+                        errDelete(msg, "Unable to find `mindustry-mod` in the list of repository topics.\nAdd it in the topics section *(this can be edited next to the 'About' section)*.");
+                        return;
+                    }
+
+                    if(!actualContains[0]){
+                        errDelete(msg, "Unable to find your Discord username + discriminator in the repo description or owner bio.\n\nMake sure `" + rawSearchString + "` is written in one of these locations.");
+                        return;
+                    }
+
+                    if(val.getInt("stargazers_count", 0) < minModStars){
+                        errDelete(msg, "You need at least " + minModStars + " stars on your repository to get the Modder role.");
+                        return;
+                    }
+
+                    guild.addRoleToMember(msg.getMember(), modderRole).queue();
+
+                    info(msg.getChannel(), "Success!", "You have now obtained the Modder role.");
+                });
+            }
+        });*/
 
         handler.<Message>register("yandex", "<фраза...>", "Поищу за тебя это в Яндексе.", (args, msg) -> {
             text(msg, "https://yandex.ru/search/?text=@", Strings.encode(args[0]));
@@ -446,16 +536,19 @@ public class Messages extends ListenerAdapter{
                     user = msg.getAuthor();
                 }
 
-                String link = user.getEffectiveAvatarUrl() + "?size=1024";
+                if(user.getIdLong() == 737869099811733527L){
+                    text(msg, "ага щас");
+                }else{
+                    String link = user.getEffectiveAvatarUrl() + "?size=1024";
 
-                EmbedBuilder embed = new EmbedBuilder();
-                embed.setColor(normalColor);
-                embed.setTitle(user.getName() + "#" + user.getDiscriminator());
-                embed.setImage(link);
-                embed.setDescription("[Ссылка](" + link + ")");
-                embed.setFooter("Команду вызвал " + msg.getAuthor().getName() + "#" + msg.getAuthor().getDiscriminator());
-                msg.getChannel().sendMessageEmbeds(embed.build()).queue();
-
+                    EmbedBuilder embed = new EmbedBuilder();
+                    embed.setColor(normalColor);
+                    embed.setTitle(user.getName() + "#" + user.getDiscriminator());
+                    embed.setImage(link);
+                    embed.setDescription("[Ссылка](" + link + ")");
+                    embed.setFooter("Команду вызвал " + msg.getAuthor().getName() + "#" + msg.getAuthor().getDiscriminator());
+                    msg.getChannel().sendMessageEmbeds(embed.build()).queue();
+                }
             }catch(Exception e){
                 errDelete(msg, "Неверный ID или имя пользователя.");
             }
@@ -498,6 +591,29 @@ public class Messages extends ListenerAdapter{
                 sendWarnings(msg, user);
             }catch(Exception e){
                 errDelete(msg, "Неверный ID или имя пользователя.");
+            }
+        });
+
+        adminHandler.<Message>register("testemoji", "<ID>", "Отправить эмодзи по ID.", (args, msg) -> {
+            Emote emoji = null;
+
+            try{
+                emoji = guild.getEmoteById(args[0]);
+            }catch(Exception ignored){
+            }
+
+            if(emoji == null){
+                var emotes = guild.getEmotesByName(args[0], true);
+                if(emotes.size() > 0){
+                    emoji = emotes.get(0);
+                }
+            }
+
+            if(emoji == null){
+                errDelete(msg, "Эмодзи не найден.");
+            }else{
+                msg.delete().queue();
+                text(msg.getChannel(), emoji.getAsMention());
             }
         });
 
@@ -547,8 +663,9 @@ public class Messages extends ListenerAdapter{
             String author = args[1].substring(2, args[1].length() - 1);
             if(author.startsWith("!")) author = author.substring(1);
             try{
-                long l = Long.parseLong(author);
-                User user = jda.retrieveUserById(l).complete();
+
+                var l = UserSnowflake.fromId(author);
+                User user = jda.retrieveUserById(author).complete();
                 boolean add = args[0].equals("add");
                 if(add){
                     guild.addRoleToMember(l, guild.getRoleById(877171645427621889L)).queue();
@@ -565,116 +682,120 @@ public class Messages extends ListenerAdapter{
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event){
-        var msg = event.getMessage();
+        try{
 
-        if(msg.getAuthor().isBot() || msg.getChannel().getType() != ChannelType.TEXT) return;
+            var msg = event.getMessage();
+            if(msg.getAuthor().isBot() || msg.getChannel().getType() != ChannelType.TEXT) return;
 
-        EmbedBuilder log = new EmbedBuilder()
-        .setAuthor(msg.getAuthor().getName(), msg.getAuthor().getEffectiveAvatarUrl(), msg.getAuthor().getEffectiveAvatarUrl())
-        .setDescription(msg.getContentRaw().length() >= 2040 ? msg.getContentRaw().substring(0, 2040) + "..." : msg.getContentRaw())
-        .addField("Автор", msg.getAuthor().getAsMention(), false)
-        .addField("Канал", msg.getTextChannel().getAsMention(), false)
-        .setColor(normalColor);
+            EmbedBuilder log = new EmbedBuilder()
+            .setAuthor(msg.getAuthor().getName(), msg.getAuthor().getEffectiveAvatarUrl(), msg.getAuthor().getEffectiveAvatarUrl())
+            .setDescription(msg.getContentRaw().length() >= 2040 ? msg.getContentRaw().substring(0, 2040) + "..." : msg.getContentRaw())
+            .addField("Автор", msg.getAuthor().getAsMention(), false)
+            .addField("Канал", msg.getTextChannel().getAsMention(), false)
+            .setColor(normalColor);
 
-        if(msg.getReferencedMessage() != null){
-            log.addField("Отвечает на сообщение", msg.getReferencedMessage().getAuthor().getAsMention() + " [Ссылка](" + msg.getReferencedMessage().getJumpUrl() + ")", false);
-        }
-
-        if(msg.getMentionedUsers().stream().anyMatch(u -> u.getIdLong() == 201731509223292928L)){
-            log.addField("Заметка", "упоминание", false);
-        }
-
-        if(msg.getChannel().getIdLong() != testingChannel.getIdLong()){
-            logChannel.sendMessageEmbeds(log.build()).queue();
-        }
-
-        //delete stray invites
-        if(!isAdmin(msg.getAuthor()) && checkSpam(msg, false)){
-            return;
-        }
-
-        //delete non-art
-        /*if(!isAdmin(msg.getAuthor()) && msg.getChannel().getIdLong() == artChannel.getIdLong() && msg.getAttachments().isEmpty()){
-            msg.delete().queue();
-
-            if(msg.getType() != MessageType.CHANNEL_PINNED_ADD){
-                try{
-                    msg.getAuthor().openPrivateChannel().complete().sendMessage("Don't send messages without images in that channel.").queue();
-                }catch(Exception e1){
-                    e1.printStackTrace();
-                }
+            if(msg.getReferencedMessage() != null){
+                log.addField("Отвечает на сообщение", msg.getReferencedMessage().getAuthor().getAsMention() + " [Ссылка](" + msg.getReferencedMessage().getJumpUrl() + ")", false);
             }
-        }*/
 
-        String text = msg.getContentRaw();
+            if(msg.getMentionedUsers().stream().anyMatch(u -> u.getIdLong() == 201731509223292928L)){
+                log.addField("Заметка", "упоминание", false);
+            }
 
-        //schematic preview
-        if((msg.getContentRaw().startsWith(ContentHandler.schemHeader) && msg.getAttachments().isEmpty()) ||
-        (msg.getAttachments().size() == 1 && msg.getAttachments().get(0).getFileExtension() != null && msg.getAttachments().get(0).getFileExtension().equals(Vars.schematicExtension))){
-            try{
-                Schematic schem = msg.getAttachments().size() == 1 ? contentHandler.parseSchematicURL(msg.getAttachments().get(0).getUrl()) : contentHandler.parseSchematic(msg.getContentRaw());
-                BufferedImage preview = contentHandler.previewSchematic(schem);
-                String sname = schem.name().replace("/", "_").replace(" ", "_");
-                if(sname.isEmpty()) sname = "empty";
+            if(msg.getChannel().getIdLong() != testingChannel.getIdLong()){
+                logChannel.sendMessageEmbeds(log.build()).queue();
+            }
 
-                new File("cache").mkdir();
-                File previewFile = new File("cache/img_" + UUID.randomUUID() + ".png");
-                File schemFile = new File("cache/" + sname + "." + Vars.schematicExtension);
-                Schematics.write(schem, new Fi(schemFile));
-                ImageIO.write(preview, "png", previewFile);
+            //delete stray invites
+            if(!isAdmin(msg.getAuthor()) && checkSpam(msg, false)){
+                return;
+            }
 
-                EmbedBuilder builder = new EmbedBuilder().setColor(normalColor).setColor(normalColor)
-                .setImage("attachment://" + previewFile.getName())
-                .setAuthor(msg.getAuthor().getName(), msg.getAuthor().getEffectiveAvatarUrl(), msg.getAuthor().getEffectiveAvatarUrl()).setTitle(schem.name());
-
-                if(!schem.description().isEmpty()) builder.setFooter(schem.description());
-
-                StringBuilder field = new StringBuilder();
-
-                for(ItemStack stack : schem.requirements()){
-                    List<Emote> emotes = guild.getEmotesByName(stack.item.name.replace("-", ""), true);
-                    Emote result = emotes.isEmpty() ? guild.getEmotesByName("ohno", true).get(0) : emotes.get(0);
-
-                    field.append(result.getAsMention()).append(stack.amount).append("  ");
-                }
-                builder.addField("Стоимость", field.toString(), false);
-
-                msg.getChannel().sendFile(schemFile).addFile(previewFile).setEmbeds(builder.build()).queue();
+            //delete non-art
+            /*if(!isAdmin(msg.getAuthor()) && msg.getChannel().getIdLong() == artChannel.getIdLong() && msg.getAttachments().isEmpty()){
                 msg.delete().queue();
-            }catch(Throwable e){
-                if(schematicChannels.contains(msg.getChannel().getIdLong())){
-                    msg.delete().queue();
+
+                if(msg.getType() != MessageType.CHANNEL_PINNED_ADD){
                     try{
-                        msg.getAuthor().openPrivateChannel().complete().sendMessage("Ошибка в парсинге схемы: " + e.getClass().getSimpleName() + (e.getMessage() == null ? "" : " (" + e.getMessage() + ")")).queue();
-                    }catch(Exception e2){
-                        e2.printStackTrace();
+                        msg.getAuthor().openPrivateChannel().complete().sendMessage("Don't send messages without images in that channel.").queue();
+                    }catch(Exception e1){
+                        e1.printStackTrace();
                     }
                 }
-                //ignore errors
-            }
-        }else if(schematicChannels.contains(msg.getChannel().getIdLong()) && !isAdmin(msg.getAuthor())){
-            //delete non-schematics
-            msg.delete().queue();
-            try{
-                msg.getAuthor().openPrivateChannel().complete().sendMessage("В канал #схемы можно отправлять только схемы. Вы можете отправить их как файл, или как кодированную строку.").queue();
-            }catch(Exception e){
-                e.printStackTrace();
-            }
-            return;
-        }
+            }*/
 
-        if(!text.replace(prefix, "").trim().isEmpty()){
-            if(isAdmin(msg.getAuthor())){
-                boolean unknown = handleResponse(msg, adminHandler.handleMessage(text, msg), false);
-                handleResponse(msg, handler.handleMessage(text, msg), !unknown);
-            }else{
-                handleResponse(msg, handler.handleMessage(text, msg), true);
+            String text = msg.getContentRaw();
+
+            //schematic preview
+            if((msg.getContentRaw().startsWith(ContentHandler.schemHeader) && msg.getAttachments().isEmpty()) ||
+            (msg.getAttachments().size() == 1 && msg.getAttachments().get(0).getFileExtension() != null && msg.getAttachments().get(0).getFileExtension().equals(Vars.schematicExtension))){
+                try{
+                    Schematic schem = msg.getAttachments().size() == 1 ? contentHandler.parseSchematicURL(msg.getAttachments().get(0).getUrl()) : contentHandler.parseSchematic(msg.getContentRaw());
+                    BufferedImage preview = contentHandler.previewSchematic(schem);
+                    String sname = schem.name().replace("/", "_").replace(" ", "_");
+                    if(sname.isEmpty()) sname = "empty";
+
+                    new File("cache").mkdir();
+                    File previewFile = new File("cache/img_" + UUID.randomUUID() + ".png");
+                    File schemFile = new File("cache/" + sname + "." + Vars.schematicExtension);
+                    Schematics.write(schem, new Fi(schemFile));
+                    ImageIO.write(preview, "png", previewFile);
+
+                    EmbedBuilder builder = new EmbedBuilder().setColor(normalColor).setColor(normalColor)
+                    .setImage("attachment://" + previewFile.getName())
+                    .setAuthor(msg.getAuthor().getName(), msg.getAuthor().getEffectiveAvatarUrl(), msg.getAuthor().getEffectiveAvatarUrl()).setTitle(schem.name());
+
+                    if(!schem.description().isEmpty()) builder.setFooter(schem.description());
+
+                    StringBuilder field = new StringBuilder();
+
+                    for(ItemStack stack : schem.requirements()){
+                        List<Emote> emotes = guild.getEmotesByName(stack.item.name.replace("-", ""), true);
+                        Emote result = emotes.isEmpty() ? guild.getEmotesByName("ohno", true).get(0) : emotes.get(0);
+
+                        field.append(result.getAsMention()).append(stack.amount).append("  ");
+                    }
+                    builder.addField("Стоимость", field.toString(), false);
+
+                    msg.getChannel().sendFile(schemFile).addFile(previewFile).setEmbeds(builder.build()).queue();
+                    msg.delete().queue();
+                }catch(Throwable e){
+                    if(schematicChannels.contains(msg.getChannel().getIdLong())){
+                        msg.delete().queue();
+                        try{
+                            msg.getAuthor().openPrivateChannel().complete().sendMessage("Ошибка в парсинге схемы: " + e.getClass().getSimpleName() + (e.getMessage() == null ? "" : " (" + e.getMessage() + ")")).queue();
+                        }catch(Exception e2){
+                            e2.printStackTrace();
+                        }
+                    }
+                    //ignore errors
+                }
+            }else if(schematicChannels.contains(msg.getChannel().getIdLong()) && !isAdmin(msg.getAuthor())){
+                //delete non-schematics
+                msg.delete().queue();
+                try{
+                    msg.getAuthor().openPrivateChannel().complete().sendMessage("В канал #схемы можно отправлять только схемы. Вы можете отправить их как файл, или как кодированную строку.").queue();
+                }catch(Exception e){
+                    e.printStackTrace();
+                }
+                return;
             }
+
+            if(!text.replace(prefix, "").trim().isEmpty()){
+                if(isAdmin(msg.getAuthor())){
+                    boolean unknown = handleResponse(msg, adminHandler.handleMessage(text, msg), false);
+                    handleResponse(msg, handler.handleMessage(text, msg), !unknown);
+                }else{
+                    handleResponse(msg, handler.handleMessage(text, msg), true);
+                }
+            }
+        }catch(Exception e){
+            Log.err(e);
         }
     }
 
     @Override
-    public void onGuildMessageUpdate(GuildMessageUpdateEvent event){
+    public void onMessageUpdate(MessageUpdateEvent event){
         var msg = event.getMessage();
 
         if(isAdmin(msg.getAuthor()) || checkSpam(msg, true)){
@@ -838,6 +959,20 @@ public class Messages extends ListenerAdapter{
         return member != null && member.getRoles().stream().anyMatch(role -> role.getName().equals("Разработчик") || role.getName().equals("Модератор") || role.getName().equals("\uD83D\uDD28 \uD83D\uDD75️\u200D♂️"));
     }
 
+    String replaceCyrillic(String in){
+        StringBuilder out = new StringBuilder(in.length());
+        for(int i = 0; i < in.length(); i++){
+            char c = in.charAt(i);
+            int index = cyrillicFrom.indexOf(c);
+            if(index == -1){
+                out.append(c);
+            }else{
+                out.append(cyrillicTo.charAt(index));
+            }
+        }
+        return out.toString();
+    }
+
     boolean checkSpam(Message message, boolean edit){
 
         if(message.getChannel().getType() != ChannelType.PRIVATE){
@@ -848,7 +983,7 @@ public class Messages extends ListenerAdapter{
                 Seq.with(message.getMentionedMembers()).map(IMentionable::getAsMention).and(Seq.with(message.getMentionedRoles()).map(IMentionable::getAsMention));
 
             var data = data(message.getAuthor());
-            String content = message.getContentRaw().toLowerCase(Locale.ROOT);
+            String content = message.getContentStripped().toLowerCase(Locale.ROOT);
 
             //go through every ping individually
             for(var ping : mentioned){
@@ -901,6 +1036,9 @@ public class Messages extends ListenerAdapter{
                 data.lastLinkMessage = null;
                 data.lastLinkChannelId = null;
             }
+
+            //zwj
+            content = content.replaceAll("\u200B", "").replaceAll("\u200D", "");
 
             if(invitePattern.matcher(content).find()){
                 Log.warn("Пользователь @ отправил приглашение в канал @.", message.getAuthor().getName(), message.getChannel().getName());
