@@ -232,7 +232,7 @@ public class Messages extends ListenerAdapter{
 
         handler.<Message>register("postplugin", "<ссылка-github>", "Добавить плагин.", (args, msg) -> {
             if(!args[0].startsWith("https") || !args[0].contains("github")){
-                errDelete(msg, "That's not a valid Github URL.");
+                errDelete(msg, "Это не похоже на ссылку на GitHub.");
             }else{
                 try{
                     Document doc = Jsoup.connect(args[0]).get();
@@ -244,18 +244,18 @@ public class Messages extends ListenerAdapter{
 
                     Elements elem = doc.select("span[itemprop=about]");
                     if(!elem.isEmpty()){
-                        builder.addField("About", elem.text(), false);
+                        builder.addField("О плагине", elem.text(), false);
                     }
 
                     builder
-                    .addField("Link", args[0], false)
-                    .addField("Downloads", args[0] + (args[0].endsWith("/") ? "" : "/") + "releases", false);
+                    .addField("Ссылка", args[0], false)
+                    .addField("Скачать", args[0] + (args[0].endsWith("/") ? "" : "/") + "releases", false);
 
                     pluginChannel.sendMessageEmbeds(builder.build()).queue();
 
-                    text(msg, "*Plugin posted.*");
+                    text(msg, "*Плагин отправлен.*");
                 }catch(IOException e){
-                    errDelete(msg, "Failed to fetch plugin info from URL.");
+                    errDelete(msg, "Не удалось загрузить информацию из данного URL.");
                 }
             }
         });
