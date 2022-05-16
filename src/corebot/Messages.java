@@ -4,6 +4,7 @@ import arc.files.*;
 import arc.math.*;
 import arc.struct.*;
 import arc.util.*;
+import arc.util.Nullable;
 import arc.util.CommandHandler.*;
 import arc.util.io.Streams;
 import arc.util.serialization.*;
@@ -18,10 +19,12 @@ import net.dv8tion.jda.api.events.guild.member.*;
 import net.dv8tion.jda.api.events.guild.member.update.*;
 import net.dv8tion.jda.api.events.message.*;
 import net.dv8tion.jda.api.events.user.update.UserUpdateNameEvent;
+import net.dv8tion.jda.api.events.message.react.*;
 import net.dv8tion.jda.api.hooks.*;
 import net.dv8tion.jda.api.requests.*;
 import net.dv8tion.jda.api.utils.*;
 import net.dv8tion.jda.api.utils.cache.*;
+import org.jetbrains.annotations.*;
 import org.jsoup.*;
 import org.jsoup.nodes.*;
 import org.jsoup.select.*;
@@ -46,7 +49,7 @@ public class Messages extends ListenerAdapter{
 	private static final String invalidNicknameMessage = "Ваш никнейм содержит недопустимые символы." +
 		" Разрешённые символы: ASCII, кириллица. Никнейм был изменён на ";
     private static final String prefix = "!";
-    private static final int scamAutobanLimit = 3, pingSpamLimit = 10, minModStars = 10, naughtyTimeoutMins = 10;
+    private static final int scamAutobanLimit = 3, pingSpamLimit = 20, minModStars = 10, naughtyTimeoutMins = 20;
     private static final SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd");
     private static final String[] warningStrings = {"однажды", "дважды", "трижды", "слишком много раз"};
 
@@ -68,7 +71,7 @@ public class Messages extends ListenerAdapter{
     );
 
     //yes it's base64 encoded, I don't want any of these words typed here
-    private static final Pattern badWordPattern = Pattern.compile(new String(Base64Coder.decode("KD88IVthLXpBLVpdKSg/OmN1bXxzZW1lbnxwb3JufG5pZ2cucikoPyFbYS16QS1aXSk=")));
+    private static final Pattern badWordPattern = Pattern.compile(new String(Base64Coder.decode("KD88IVthLXpBLVpdKSg/OmN1bXxzZW1lbnxjb2NrfHB1c3N5fGN1bnR8bmlnZy5yKSg/IVthLXpBLVpdKQ==")));
     private static final Pattern notBadWordPattern = Pattern.compile("");
     private static final Pattern invitePattern = Pattern.compile("(discord\\.gg/\\w|discordapp\\.com/invite/\\w|discord\\.com/invite/\\w)");
     private static final Pattern linkPattern = Pattern.compile("http(s?)://");
@@ -138,7 +141,8 @@ public class Messages extends ListenerAdapter{
     pluginChannel, crashReportChannel, announcementsChannel, artChannel,
     mapsChannel, moderationChannel, schematicsChannel, baseSchematicsChannel,
     logChannel, joinChannel, videosChannel, streamsChannel, testingChannel,
-    alertsChannel, curatedSchematicsChannel;
+    alertsChannel, curatedSchematicsChannel, botsChannel;
+    public Emote aaaaa;
 
     public Role modderRole;
 
@@ -150,7 +154,7 @@ public class Messages extends ListenerAdapter{
         register();
 
         try{
-            jda = JDABuilder.createDefault(token, GatewayIntent.GUILD_MESSAGES, GatewayIntent.GUILD_EMOJIS, GatewayIntent.GUILD_MEMBERS, GatewayIntent.GUILD_PRESENCES)
+            jda = JDABuilder.createDefault(token, GatewayIntent.GUILD_MESSAGES, GatewayIntent.GUILD_EMOJIS, GatewayIntent.GUILD_MEMBERS, GatewayIntent.GUILD_PRESENCES, GatewayIntent.GUILD_MESSAGE_REACTIONS)
                 .setMemberCachePolicy(MemberCachePolicy.ALL).disableCache(CacheFlag.VOICE_STATE).build();
             jda.awaitReady();
             jda.addEventListener(this);
@@ -191,33 +195,38 @@ public class Messages extends ListenerAdapter{
         testingChannel = channel(966947096890585128L);
         alertsChannel = channel(966935949508497479L);
         curatedSchematicsChannel = channel(966947096890585128L);
+        botsChannel = channel(963835283927875606L);
+        //aaaaa = guild.getEmotesByName("alphaaaaaaaa", true).get(0);
 
         schematicChannels.add(schematicsChannel.getIdLong(), baseSchematicsChannel.getIdLong(), curatedSchematicsChannel.getIdLong());
+    }
+
+    void printCommands(CommandHandler handler, StringBuilder builder){
+        for(Command command : handler.getCommandList()){
+            builder.append(prefix);
+            builder.append("**");
+            builder.append(command.text);
+            builder.append("**");
+            if(command.params.length > 0){
+                builder.append(" *");
+                builder.append(command.paramText);
+                builder.append("*");
+            }
+            builder.append(" - ");
+            builder.append(command.description);
+            builder.append("\n");
+        }
     }
 
     void register(){
         handler.<Message>register("help", "Показывает все команды бота.", (args, msg) -> {
             StringBuilder builder = new StringBuilder();
-            for(Command command : handler.getCommandList()){
-                builder.append(prefix);
-                builder.append("**");
-                builder.append(command.text);
-                builder.append("**");
-                if(command.params.length > 0){
-                    builder.append(" *");
-                    builder.append(command.paramText);
-                    builder.append("*");
-                }
-                builder.append(" - ");
-                builder.append(command.description);
-                builder.append("\n");
-            }
-
+            printCommands(handler, builder);
             info(msg.getChannel(), "Команды", builder.toString());
         });
 
         handler.<Message>register("ping", "<ip>", "Отправляет пинг игровому серверу.", (args, msg) -> {
-            if(!msg.getChannel().getName().equalsIgnoreCase("боты")){
+            if(msg.getChannel().getIdLong() != botsChannel.getIdLong()){
                 errDelete(msg, "Используйте команду в канале #боты.");
                 return;
             }
@@ -307,7 +316,7 @@ public class Messages extends ListenerAdapter{
         });
 
         /*handler.<Message>register("verifymodder", "[user/repo]", "Verify yourself as a modder by showing a mod repository that you own. Invoke with no arguments for additional info.", (args, msg) -> {
-            if(!msg.getChannel().getName().equalsIgnoreCase("bots")){
+            if(msg.getChannel().getIdLong() != botsChannel.getIdLong()){
                 errDelete(msg, "Use this command in #bots.");
                 return;
             }
@@ -505,7 +514,7 @@ public class Messages extends ListenerAdapter{
 
 
         handler.<Message>register("mywarnings", "Получить информацию о своих предупреждениях. Только для #боты.", (args, msg) -> {
-            if(!msg.getChannel().getName().equalsIgnoreCase("боты")){
+            if(msg.getChannel().getIdLong() != botsChannel.getIdLong()){
                 errDelete(msg, "Используйте команду в канале #боты.");
                 return;
             }
@@ -514,7 +523,7 @@ public class Messages extends ListenerAdapter{
         });
 
         handler.<Message>register("avatar", "[@пользователь]", "Получить полную \"аватарку\" пользователя.", (args, msg) -> {
-            if(!msg.getChannel().getName().equalsIgnoreCase("боты")){
+            if(msg.getChannel().getIdLong() != botsChannel.getIdLong() && !isAdmin(msg.getAuthor())){
                 errDelete(msg, "Используйте команду в канале #боты.");
                 return;
             }
@@ -538,6 +547,8 @@ public class Messages extends ListenerAdapter{
 
                 if(user.getIdLong() == 737869099811733527L){
                     text(msg, "ага щас");
+                //if(user.getIdLong() == jda.getSelfUser().getIdLong() && Mathf.chance(0.5)){
+                //    msg.getChannel().sendMessage(aaaaa.getAsMention()).queue();
                 }else{
                     String link = user.getEffectiveAvatarUrl() + "?size=1024";
 
@@ -552,6 +563,12 @@ public class Messages extends ListenerAdapter{
             }catch(Exception e){
                 errDelete(msg, "Неверный ID или имя пользователя.");
             }
+        });
+
+        adminHandler.<Message>register("adminhelp", "Показывает все административные команды бота.", (args, msg) -> {
+            StringBuilder builder = new StringBuilder();
+            printCommands(adminHandler, builder);
+            info(msg.getChannel(), "Административные команды", builder.toString());
         });
 
         adminHandler.<Message>register("userinfo", "<пользователь>", "Получить информацию о пользователе.", (args, msg) -> {
@@ -646,14 +663,34 @@ public class Messages extends ListenerAdapter{
             }
         });
 
-        adminHandler.<Message>register("clearwarnings", "<@пользователь>", "Очистить все предупреждения.", (args, msg) -> {
+        adminHandler.<Message>register("unwarn", "<@пользователь> <порядковый номер>", "Убрать предупреждение.", (args, msg) -> {
+            String author = args[0].substring(2, args[0].length() - 1);
+            if(author.startsWith("!")) author = author.substring(1);
+            try{
+                int index = Math.max(Integer.parseInt(args[1]), 1);
+                long l = Long.parseLong(author);
+                User user = jda.retrieveUserById(l).complete();
+                var list = getWarnings(user);
+                if(list.size > index - 1){
+                    list.remove(index - 1);
+                    prefs.putArray("warning-list-" + user.getIdLong(), list);
+                    text(msg, "Предупреждение убрано.");
+                }else{
+                    errDelete(msg, "Неверный порядковый номер. @ > @", index, list.size);
+                }
+            }catch(Exception e){
+                errDelete(msg, "Ошибка форматирования.");
+            }
+        });
+
+        adminHandler.<Message>register("clearwarnings", "<@пользователь>", "Очистить все предупреждения пользователя.", (args, msg) -> {
             String author = args[0].substring(2, args[0].length() - 1);
             if(author.startsWith("!")) author = author.substring(1);
             try{
                 long l = Long.parseLong(author);
                 User user = jda.retrieveUserById(l).complete();
                 prefs.putArray("warning-list-" + user.getIdLong(), new Seq<>());
-                text(msg, "Cleared warnings for user '@'.", user.getName());
+                text(msg, "Предупреждения убраны для пользователя '@'.", user.getName());
             }catch(Exception e){
                 errDelete(msg, "Неверный ID или имя пользователя.");
             }
@@ -678,6 +715,42 @@ public class Messages extends ListenerAdapter{
                 errDelete(msg, "Incorrect name format.");
             }
         });*/
+
+        adminHandler.<Message>register("banid", "<id> [причина...]", "Блокирует пользователя по числовому ID.", (args, msg) -> {
+            try{
+                long l = Long.parseLong(args[0]);
+                User user = jda.retrieveUserById(l).complete();
+
+                guild.ban(user, 0, args.length > 1 ? msg.getAuthor().getName() + " использовал banid: " + args[1] : msg.getAuthor().getName() + ": <причина не указана в команде>").queue();
+                text(msg, "Пользователь заблокирован: **@**", l);
+            }catch(Exception e){
+                errDelete(msg, "Ошибка форматирования, или пользователь не найден.");
+            }
+        });
+    }
+
+    @Override
+    public void onMessageReactionAdd(@NotNull MessageReactionAddEvent event){
+        try{
+            if(event.getUser() != null && event.getChannel().equals(mapsChannel) && event.getReactionEmote().isEmoji() && event.getReactionEmote().getEmoji().equals("❌")){
+                event.getChannel().retrieveMessageById(event.getMessageIdLong()).queue(m -> {
+                    try{
+                        String baseUrl = event.retrieveUser().complete().getEffectiveAvatarUrl();
+
+                        for(var embed : m.getEmbeds()){
+                            if(embed.getAuthor() != null && embed.getAuthor().getIconUrl() != null && embed.getAuthor().getIconUrl().equals(baseUrl)){
+                                m.delete().queue();
+                                return;
+                            }
+                        }
+                    }catch(Exception e){
+                        Log.err(e);
+                    }
+                });
+            }
+        }catch(Exception e){
+            Log.err(e);
+        }
     }
 
     @Override
@@ -687,12 +760,20 @@ public class Messages extends ListenerAdapter{
             var msg = event.getMessage();
             if(msg.getAuthor().isBot() || msg.getChannel().getType() != ChannelType.TEXT) return;
 
+            if(msg.getMentionedUsers().contains(jda.getSelfUser())){
+                msg.addReaction(aaaaa).queue();
+            }
+
             EmbedBuilder log = new EmbedBuilder()
             .setAuthor(msg.getAuthor().getName(), msg.getAuthor().getEffectiveAvatarUrl(), msg.getAuthor().getEffectiveAvatarUrl())
             .setDescription(msg.getContentRaw().length() >= 2040 ? msg.getContentRaw().substring(0, 2040) + "..." : msg.getContentRaw())
             .addField("Автор", msg.getAuthor().getAsMention(), false)
             .addField("Канал", msg.getTextChannel().getAsMention(), false)
             .setColor(normalColor);
+
+            for(var attach : msg.getAttachments()){
+                log.addField("File: " + attach.getFileName(), attach.getUrl(), false);
+            }
 
             if(msg.getReferencedMessage() != null){
                 log.addField("Отвечает на сообщение", msg.getReferencedMessage().getAuthor().getAsMention() + " [Ссылка](" + msg.getReferencedMessage().getJumpUrl() + ")", false);
@@ -784,6 +865,7 @@ public class Messages extends ListenerAdapter{
             if(!text.replace(prefix, "").trim().isEmpty()){
                 if(isAdmin(msg.getAuthor())){
                     boolean unknown = handleResponse(msg, adminHandler.handleMessage(text, msg), false);
+
                     handleResponse(msg, handler.handleMessage(text, msg), !unknown);
                 }else{
                     handleResponse(msg, handler.handleMessage(text, msg), true);
@@ -980,26 +1062,31 @@ public class Messages extends ListenerAdapter{
                 //ignore reply messages, bots don't use those
                 message.getReferencedMessage() != null ? new Seq<>() :
                 //get all mentioned members and roles in one list
-                Seq.with(message.getMentionedMembers()).map(IMentionable::getAsMention).and(Seq.with(message.getMentionedRoles()).map(IMentionable::getAsMention));
+                Seq.with(message.getMentionedMembers()).map(IMentionable::getAsMention).add(Seq.with(message.getMentionedRoles()).map(IMentionable::getAsMention));
 
             var data = data(message.getAuthor());
             String content = message.getContentStripped().toLowerCase(Locale.ROOT);
 
             //go through every ping individually
             for(var ping : mentioned){
-                if(!ping.equals(data.lastPingId)){
-                    data.lastPingId = ping;
-                    data.uniquePings++;
-                    if(data.uniquePings >= pingSpamLimit){
-                        Log.info("Автоматически блокирую пользователя @ за спам @ пингов подряд.", message.getAuthor().getName() + "#" + message.getAuthor().getId(), data.uniquePings);
-                        alertsChannel.sendMessage(message.getAuthor().getAsMention() + " **был автоматически заблокирован из-за упоминания " + pingSpamLimit + " пользователей в одном сообщении!**").queue();
-                        message.getGuild().ban(message.getAuthor(), 1, "Autobanned for spamming member pings.").queue();
+                if(data.idsPinged.add(ping) && data.idsPinged.size >= pingSpamLimit){
+                    String banMessage = "Вы были заблокированы за упоминание @ пользователей подряд. Если вы думаете, что блокирование ошибочное, откройте баг-репорт на репозитории CoreBotRus (https://github.com/BasedUser/CoreBotRus/issues) или напишите модератору.";
+                    Log.info("Автоматически блокирую пользователя @ за спам @ пингов подряд.", message.getAuthor().getName() + "#" + message.getAuthor().getId(), data.idsPinged.size);
+                    alertsChannel.sendMessage(message.getAuthor().getAsMention() + " **был автоматически заблокирован из-за упоминания " + pingSpamLimit + " пользователей в одном сообщении!**").queue();
+
+                    Runnable banMember = () -> message.getGuild().ban(message.getAuthor(), 1, banMessage).queue();
+
+                    try{
+                        message.getAuthor().openPrivateChannel().complete().sendMessage(banMessage).queue(done -> banMember.run(), failed -> banMember.run());
+                    }catch(Exception e){
+                        //can fail to open PM channel sometimes.
+                        banMember.run();
                     }
                 }
             }
 
             if(mentioned.isEmpty()){
-                data.uniquePings = 0;
+                data.idsPinged.clear();
             }
 
             //check for consecutive links
@@ -1088,7 +1175,6 @@ public class Messages extends ListenerAdapter{
             }else{
                 errDelete(msg, "Неверные аргументы.", "Формат: @@ *@*", prefix, response.command.text, response.command.paramText);
             }
-            return false;
         }
         return true;
     }
@@ -1145,9 +1231,7 @@ public class Messages extends ListenerAdapter{
         @Nullable String lastLinkChannelId;
         /** link cross-postings in a row */
         int linkCrossposts;
-        /** ID of last member pinged */
-        String lastPingId;
-        /** number of unique members pinged in a row */
-        int uniquePings;
+        /** all members pinged in consecutive messages */
+        ObjectSet<String> idsPinged = new ObjectSet<>();
     }
 }

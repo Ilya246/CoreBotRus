@@ -15,7 +15,7 @@ public enum Info{
     [Описание на Google Play](https://play.google.com/store/apps/details?id=mindustry)
     [Ссылка на TestFlight](https://testflight.apple.com/join/79Azm1hZ)
     [Сообщество Mindustry на Reddit](https://www.reddit.com/r/mindustry)
-    [Неофициальное пространство Matrix](https://matrix.to/#/!bjBcJCYyWfNVdAAWZt:matrix.org)
+    [Неофициальное пространство Matrix](https://matrix.to/#/#mindustry-space:matrix.org)
     """),
     beta("Бета-версия на iOS",
     """
