@@ -663,7 +663,7 @@ public class Messages extends ListenerAdapter{
             }
         });
 
-        adminHandler.<Message>register("unwarn", "<@пользователь> <порядковый номер>", "Убрать предупреждение.", (args, msg) -> {
+        adminHandler.<Message>register("unwarn", "<@пользователь> <порядковыйномер>", "Убрать предупреждение.", (args, msg) -> {
             String author = args[0].substring(2, args[0].length() - 1);
             if(author.startsWith("!")) author = author.substring(1);
             try{
@@ -1070,7 +1070,7 @@ public class Messages extends ListenerAdapter{
             //go through every ping individually
             for(var ping : mentioned){
                 if(data.idsPinged.add(ping) && data.idsPinged.size >= pingSpamLimit){
-                    String banMessage = "Вы были заблокированы за упоминание @ пользователей подряд. Если вы думаете, что блокирование ошибочное, откройте баг-репорт на репозитории CoreBotRus (https://github.com/BasedUser/CoreBotRus/issues) или напишите модератору.";
+                    String banMessage = "Вы были заблокированы за упоминание " + Integer.toString(data.idsPinged.size) + " пользователей подряд. Если вы думаете, что блокирование ошибочное, откройте баг-репорт на репозитории CoreBotRus (https://github.com/BasedUser/CoreBotRus/issues) или напишите модератору.";
                     Log.info("Автоматически блокирую пользователя @ за спам @ пингов подряд.", message.getAuthor().getName() + "#" + message.getAuthor().getId(), data.idsPinged.size);
                     alertsChannel.sendMessage(message.getAuthor().getAsMention() + " **был автоматически заблокирован из-за упоминания " + pingSpamLimit + " пользователей в одном сообщении!**").queue();
 
