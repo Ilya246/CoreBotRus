@@ -811,9 +811,9 @@ public class Messages extends ListenerAdapter{
 		try{
             if(event.getUser() != null){
 				if(event.getReactionEmote().getName().equals("plussc")){
-					addSocialCredit(event.getUser(), -socialCreditChange);
+					addSocialCredit(event.retrieveMessage().complete().getAuthor(), -socialCreditChange);
 				}else if(event.getReactionEmote().getName().equals("minussc")){
-					addSocialCredit(event.getUser(), socialCreditChange);
+					addSocialCredit(event.retrieveMessage().complete().getAuthor(), socialCreditChange);
 				}
             }
         }catch(Exception e){
