@@ -1135,12 +1135,7 @@ public class Messages extends ListenerAdapter{
     boolean checkSpam(Message message, boolean edit){
 
         if(message.getChannel().getType() != ChannelType.PRIVATE){
-            Seq<String> mentioned =
-                //ignore reply messages, bots don't use those
-                message.getReferencedMessage() != null ? new Seq<>() :
-                //get all mentioned members and roles in one list
-                Seq.with(message.getMentionedMembers()).map(IMentionable::getAsMention).add(Seq.with(message.getMentionedRoles()).map(IMentionable::getAsMention));
-
+            Seq<String> mentioned = Seq.with(message.getMentionedMembers()).map(IMentionable::getAsMention).add(Seq.with(message.getMentionedRoles()).map(IMentionable::getAsMention));
             var data = data(message.getAuthor());
             String content = message.getContentStripped().toLowerCase(Locale.ROOT);
 
